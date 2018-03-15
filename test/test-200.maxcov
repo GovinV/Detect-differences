@@ -1,0 +1,63 @@
+#!/bin/sh
+
+#test pour le couverage 
+#On teste ici le cas ou la sortie d'une commande soit exactement 
+#de la même taille que la taille initial du buffer de comparaison
+#puis rajouter en fin pour que le charactère en taille +1 soit différents, 
+#on doit allouer de nouveau le buffer mếme si jusqu'à présent la sortie 
+#n'était pas différente.
+
+cat > script.tmp <<'EOF'
+#!/bin/sh
+    F=f1.tmp
+    P=f2.tmp
+    a=`cat $F | wc -c`
+    if [ $a -eq 1280 ]
+    then cat $F; echo azerty >> $F
+    else cat $F; cat $P >> $F
+    fi
+    exit 0
+EOF
+chmod +x script.tmp
+
+
+i=1
+echo "a" > f1.tmp
+while [ $i -ne 1280 ]
+do
+    echo "a" >> f1.tmp
+    i=`expr $i + 1`
+done 
+
+cat f1.tmp > f2.tmp
+
+./detecter -c -t "%S" -i 1000 -l 4 ./script.tmp > /dev/null
+
+rm *.tmp
+
+#detection d'une mauvaise option
+./detecter -d -c -i 1000 -l 2 ls > /dev/null
+
+#limiter le nombre de fichier ouvert et ainsi le pipe
+
+a=`ulimit -Sn`
+
+ulimit -Sn 4
+
+./detecter -l 2 -i 100 ls
+
+ulimit -Sn $a
+
+#test d'une commande inexistante
+./detecter -l2 -i 100 noexiste__
+#limiter le nombre de processus:
+#dépend de l'evironnement et de la personne
+
+#a=`ulimit -Su`
+#ulimit -Su ??
+#./detecter -l 4 ls
+#ulimit -Su $a
+
+
+# il ne faut pas non plus oublier les signaux pour sortir du programme:
+# SIGINT et SIGQUIT
